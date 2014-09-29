@@ -170,7 +170,7 @@ static int parse_opt (int key, char *arg, struct argp_state *state){
 			a->protocol=ICMP;
 			a->saddr=0;
 			a->daddr=0;
-			a->payload=NULL;
+			a->payload="";
 			a->count=0;
 			a->sport=-1;
 			a->dport=-1;
@@ -274,7 +274,6 @@ int main(int argc, char **argv){
 		packet_size = sizeof (struct iphdr) + sizeof (struct icmphdr) + payload_size;
 	/*Allocating memory*/
 	char *packet = (char *) malloc (packet_size);
-	
 	//ip header
 	struct iphdr *ip = (struct iphdr *) packet;
 	struct udphdr *udp;
@@ -344,24 +343,30 @@ int main(int argc, char **argv){
 		data			= (packet + sizeof(struct iphdr) + sizeof(struct udphdr));
 	}
 	else if(a.protocol == TCP){
-		tcp->source	= a.sport;
-		tcp->dest	= a.dport;
-		tcp->fin	= a.fin;
-		tcp->syn	= a.syn;
-		tcp->rst	= a.rst;
-		tcp->psh	= a.psh;
-		tcp->ack	= a.ack;
-		tcp->urg	= a.urg;
+		tcp->source	= htons(a.sport);
+		tcp->dest	= htons(a.dport);
+		tcp->fin		= a.fin;
+		tcp->syn		= a.syn;
+		tcp->rst		= a.rst;
+		tcp->psh		= a.psh;
+		tcp->ack		= a.ack;
+		tcp->urg		= a.urg;
+		tcp->seq 	= 0;
+		tcp->doff 	= 5;	
+		tcp->check	= 0;
+		tcp->window = htons (5840);
 		tcp->check	= in_cksum((unsigned short *)tcp, sizeof(struct tcphdr) + payload_size);
+		tcp->urg_ptr = 0;
+		tcp->ack_seq = 0;
 		data		= (packet + sizeof(struct iphdr) + sizeof(struct tcphdr));
 	}
 	else{
 		icmp->type			= ICMP_ECHO;
 		icmp->code			= 0;
-		icmp->un.echo.sequence = 0;
-		icmp->un.echo.id	= rand();
 		icmp->checksum		= 0;
 		icmp->checksum		= in_cksum((unsigned short *)icmp, sizeof(struct icmphdr) + payload_size);
+		icmp->un.echo.sequence = 0;
+		icmp->un.echo.id	= rand();
 		data				= (packet + sizeof(struct iphdr) + sizeof(struct icmphdr));
 	}
 	
@@ -370,7 +375,6 @@ int main(int argc, char **argv){
 	servaddr.sin_addr.s_addr = a.daddr;
 	memset(&servaddr.sin_zero, 0, sizeof (servaddr.sin_zero));
 	strcpy(data,a.payload);
-	puts("flooding...");
 	
 	while (1){
 		if ( (sent_size = sendto(sockfd, packet, packet_size, 0, (struct sockaddr*) &servaddr, sizeof (servaddr))) < 1){
