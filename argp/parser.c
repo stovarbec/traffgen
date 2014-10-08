@@ -3,6 +3,16 @@
 #include <argz.h>
 #include <stdlib.h>
 #include <stdbool.h>
+
+#ifndef ICMP
+#define ICMP 1
+#endif
+#ifndef TCP
+#define TCP 6
+#endif
+#ifndef UDP
+#define UDP 17
+#endif
 const char *argp_program_bug_address = "xzamora@seguridad.unam.mx ";
 const char *argp_program_version = "version 1.0";
 static char doc[]="Simple packet's crafter\v"
@@ -54,8 +64,6 @@ struct arguments{
 	bool verbose,fast,flood;		/*Boolean options*/
 	unsigned int sport,dport;		/*Port number*/
 	unsigned int count;				/*Number of packets to send*/
-	
-	
 };
 static int parse_opt (int key, char *arg, struct argp_state *state){
 	struct arguments *a = state->input;
@@ -125,11 +133,12 @@ static int parse_opt (int key, char *arg, struct argp_state *state){
 			a->argz = 0;
 			a->argz_len = 0;
 			a->ip_ver=4;
-			a->protocol=1;
+			a->protocol=ICMP;
 			a->src_ip=NULL;
 			a->payload=NULL;
-			a->sport=0;
-			a->dport=80;
+			a->count=0;
+			a->sport=-1;
+			a->dport=-1;
 			a->syn=false;
 			a->ack=false;
 			a->fin=false;
@@ -138,6 +147,7 @@ static int parse_opt (int key, char *arg, struct argp_state *state){
 			a->urg=false;
 			a->fast=false;
 			a->flood=false;
+			a->verbose=false;
 			//a->syn=a->ack=a->fin=a->psh=a->rst=a->urg=false;	/*TCP Flags*/
 		break;
 		case ARGP_KEY_END:{
@@ -166,7 +176,47 @@ int main (int argc, char **argv){
 		printf ("\n");
 		free (arguments.argz);
 		*/
-		printf("%i %s %s %i %s\n",arguments.syn,arguments.src_ip,arguments.payload,arguments.ip_ver,arguments.dst_ip);
+		if(arguments.protocol==ICMP && (
+				arguments.sport!=-1		||
+				arguments.dport!=-1		||
+				arguments.syn	!= false	||
+				arguments.ack	!= false	||
+				arguments.fin	!= false	||
+				arguments.psh	!= false	||
+				arguments.rst	!= false	||
+				arguments.urg	!= false
+				)
+			)
+		{ printf("bad combination's args\n"); exit(1);}
+		if(arguments.protocol==UDP && (
+				arguments.syn	!= false	||
+				arguments.ack	!= false	||
+				arguments.fin	!= false	||
+				arguments.psh	!= false	||
+				arguments.rst	!= false	||
+				arguments.urg	!= false
+				)
+			)
+		{ printf("bad combination's args\n"); exit(1);}
+		printf("IP version:\t%i\nProtocol:\t%i\nDestination IP:\t%s\nSource IP:\t%s\nPayload:\t%s\nSYN:\t%i\nACK:\t%i\nFIN:\t%i\nPSH:\t%i\nRST:\t%i\nURG:\t%i\nVerbose:\t%i\nFast:\t%i\nFlood:\t%i\nSport:\t%i\nDport:\t%i\nCount:%i\n",
+			arguments.ip_ver,
+			arguments.protocol,
+			arguments.dst_ip,
+			arguments.src_ip,
+			arguments.payload,
+			arguments.syn,
+			arguments.ack,
+			arguments.fin,
+			arguments.psh,
+			arguments.rst,
+			arguments.urg,
+			arguments.verbose,
+			arguments.fast,
+			arguments.flood,
+			arguments.sport,
+			arguments.dport,
+			arguments.count
+		);
 	}
 	return 0;
 }
