@@ -66,6 +66,7 @@ struct arguments{
 	unsigned int count;				/*Number of packets to send*/
 };
 static int parse_opt (int key, char *arg, struct argp_state *state){
+	int aux;
 	struct arguments *a = state->input;
 	switch (key){
 		case 1111:/*ICMP Protocol*/
@@ -90,7 +91,13 @@ static int parse_opt (int key, char *arg, struct argp_state *state){
 			a->ip_ver=6;
 		break;
 		case 'c':/*Count*/
-			a->count=atoi(arg);
+			aux = atoi(arg);
+			if(aux >= 0 && aux <= 65535)
+				a->count=(unsigned int)aux;
+			else{
+				printf("Count out of range. Must be between 0 and 65535");
+				exit(0);
+			}
 		break;
 		case 'p':/*Payload*/
 			a->payload=arg;
@@ -102,10 +109,22 @@ static int parse_opt (int key, char *arg, struct argp_state *state){
 			a->verbose=true;
 		break;
 		case 'x':/*SRC Port*/
-			a->sport=atoi(arg);
+			aux = atoi(arg);
+			if(aux >= 0 && aux <= 65535)
+				a->sport=(unsigned int)aux;
+			else{
+				printf("Count out of range. Must be between 0 and 65535");
+				exit(0);
+			}
 		break;
 		case 'y':/*DST Port*/
-			a->dport=atoi(arg);
+			aux = atoi(arg);
+			if(aux >= 0 && aux <= 65535)
+				a->dport=(unsigned int)aux;
+			else{
+				printf("Count out of range. Must be between 0 and 65535");
+				exit(0);
+			}
 		break;
 		case 'S':/*SYN Flag*/
 			a->syn=true;
