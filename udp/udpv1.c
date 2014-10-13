@@ -75,8 +75,8 @@ int main(int argc, char **argv){
 	ip->daddr = daddr;
 	//ip->check = in_cksum ((u16 *) ip, sizeof (struct iphdr));
 
-  	udp->source = 50000;
-	udp->dest = 80;
+  	udp->source = htons(50000);
+	udp->dest = htons(80);
   	udp->len=htons(8 + payload_size);
 	udp->check = 0;
 	
