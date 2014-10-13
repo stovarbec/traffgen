@@ -13,6 +13,12 @@
 #ifndef UDP
 #define UDP 17
 #endif
+#ifndef HI_PORT
+#define HI_PORT 65535
+#endif
+#ifndef LO_PORT
+#define LO_PORT 32768
+#endif
 const char *argp_program_bug_address = "xzamora@seguridad.unam.mx ";
 const char *argp_program_version = "version 1.0";
 static char doc[]="Simple packet's crafter\v"
@@ -64,19 +70,24 @@ struct arguments{
 	bool verbose,fast,flood;		/*Boolean options*/
 	unsigned int sport,dport;		/*Port number*/
 	unsigned int count;				/*Number of packets to send*/
+	int proto;
+	int port;
+	int tcpf;
 };
 static int parse_opt (int key, char *arg, struct argp_state *state){
-	int aux;
 	struct arguments *a = state->input;
 	switch (key){
 		case 1111:/*ICMP Protocol*/
-			a->protocol=1;
+			a->protocol=ICMP;
+			a->proto++;
 		break;
 		case 2222:/*UDP Protocol*/
-			a->protocol=17;
+			a->protocol=UDP;
+			a->proto++;
 		break;
 		case 3333:/*TCP Protocol*/
-			a->protocol=6;
+			a->protocol=TCP;
+			a->proto++;
 		break;
 		case 1000:/*Send fast*/
 			a->fast=true;
@@ -91,13 +102,7 @@ static int parse_opt (int key, char *arg, struct argp_state *state){
 			a->ip_ver=6;
 		break;
 		case 'c':/*Count*/
-			aux = atoi(arg);
-			if(aux >= 0 && aux <= 65535)
-				a->count=(unsigned int)aux;
-			else{
-				printf("Count out of range. Must be between 0 and 65535");
-				exit(0);
-			}
+			a->count=(unsigned int)atoi(arg);
 		break;
 		case 'p':/*Payload*/
 			a->payload=arg;
@@ -109,40 +114,36 @@ static int parse_opt (int key, char *arg, struct argp_state *state){
 			a->verbose=true;
 		break;
 		case 'x':/*SRC Port*/
-			aux = atoi(arg);
-			if(aux >= 0 && aux <= 65535)
-				a->sport=(unsigned int)aux;
-			else{
-				printf("Count out of range. Must be between 0 and 65535");
-				exit(0);
-			}
+			a->sport=(unsigned int)atoi(arg);
+			a->port++;
 		break;
 		case 'y':/*DST Port*/
-			aux = atoi(arg);
-			if(aux >= 0 && aux <= 65535)
-				a->dport=(unsigned int)aux;
-			else{
-				printf("Count out of range. Must be between 0 and 65535");
-				exit(0);
-			}
+			a->dport=(unsigned int)atoi(arg);
+			a->port++;
 		break;
 		case 'S':/*SYN Flag*/
 			a->syn=true;
+			a->tcpf++;
 		break;
 		case 'A':/*ACK Flag*/
 			a->ack=true;
+			a->tcpf++;
 		break;
 		case 'F':/*FIN Flag*/
 			a->fin=true;
+			a->tcpf++;
 		break;
 		case 'P':/*PSH Flag*/
 			a->psh=true;
+			a->tcpf++;
 		break;
 		case 'R':/*RST Flag*/
 			a->rst=true;
+			a->tcpf++;
 		break;
 		case 'U':/*URG Flag*/
 			a->urg=true;
+			a->tcpf++;
 		break;
 		case ARGP_KEY_ARG:
 			argz_add (&a->argz, &a->argz_len, arg);
@@ -167,6 +168,9 @@ static int parse_opt (int key, char *arg, struct argp_state *state){
 			a->fast=false;
 			a->flood=false;
 			a->verbose=false;
+			a->proto=0;
+			a->port=0;
+			a->tcpf=0;
 			//a->syn=a->ack=a->fin=a->psh=a->rst=a->urg=false;	/*TCP Flags*/
 		break;
 		case ARGP_KEY_END:{
@@ -175,48 +179,45 @@ static int parse_opt (int key, char *arg, struct argp_state *state){
 				argp_failure (state, 1, 0, "too many arguments");
 			else if (count < 1)
 				argp_failure (state, 1, 0, "too few arguments");
+			/*More than one protocol specified*/
+			if(count == 1)
+				a->proto=1;
+			if(a->proto>1){
+				argp_failure (state, 1, 0, "You must specify only one protocol");
+			}
+			/*ICMP with port*/
+			if(a->protocol==ICMP && a->port>0){
+				argp_failure (state, 1, 0, "You can not specify a port for ICMP");
+			}
+			/*ICMP with tcp flags*/
+			if(a->protocol==ICMP && a->tcpf>0){
+				argp_failure (state, 1, 0, "You can not specify a tcp flags for ICMP");
+			}
+			/*UDP with tcp flags*/
+			if(a->protocol==UDP && a->tcpf>0){
+				argp_failure (state, 1, 0, "You can not specify a tcp flags for UDP");
+			}
+			/*UDP or TCP without destination port*/
+			if(a->dport==-1 && (a->protocol==UDP || a->protocol==TCP)){
+				argp_failure (state, 1, 0, "You must specify a destination port");
+			}
+			/*Destination port number out of range*/
+			if((a->protocol==UDP || a->protocol==TCP) && (a->dport < 1 || a->dport > HI_PORT) )
+				argp_failure (state, 1, 0, "Port number out of range. It must be between 1 and 65535");
+			/*Source port number out of range*/
+			if((a->protocol==UDP || a->protocol==TCP) && (a->sport < 1 || a->sport > HI_PORT) ){
+				srand(time(NULL));
+				a->sport=(rand()%(HI_PORT-LO_PORT))+LO_PORT;
+			}
 		}
 		break;
 	}
 	return 0;
 }
-int main (int argc, char **argv){
 	struct argp argp = { options, parse_opt, args_doc, doc};
+int main (int argc, char **argv){
 	struct arguments arguments;
 	if (argp_parse (&argp, argc, argv, 0, 0, &arguments) == 0){
-		//printf("%s");
-		/*
-		const char *prev = NULL;
-		char *word;
-		while ((word = argz_next (arguments.argz, arguments.argz_len, prev))){
-			printf (" %s", word);
-			prev = word;
-		}
-		printf ("\n");
-		free (arguments.argz);
-		*/
-		if(arguments.protocol==ICMP && (
-				arguments.sport!=-1		||
-				arguments.dport!=-1		||
-				arguments.syn	!= false	||
-				arguments.ack	!= false	||
-				arguments.fin	!= false	||
-				arguments.psh	!= false	||
-				arguments.rst	!= false	||
-				arguments.urg	!= false
-				)
-			)
-		{ printf("bad combination's args\n"); exit(1);}
-		if(arguments.protocol==UDP && (
-				arguments.syn	!= false	||
-				arguments.ack	!= false	||
-				arguments.fin	!= false	||
-				arguments.psh	!= false	||
-				arguments.rst	!= false	||
-				arguments.urg	!= false
-				)
-			)
-		{ printf("bad combination's args\n"); exit(1);}
 		printf("IP version:\t%i\nProtocol:\t%i\nDestination IP:\t%s\nSource IP:\t%s\nPayload:\t%s\nSYN:\t%i\nACK:\t%i\nFIN:\t%i\nPSH:\t%i\nRST:\t%i\nURG:\t%i\nVerbose:\t%i\nFast:\t%i\nFlood:\t%i\nSport:\t%i\nDport:\t%i\nCount:%i\n",
 			arguments.ip_ver,
 			arguments.protocol,

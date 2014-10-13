@@ -17,10 +17,11 @@ int main(int argc, char **argv){
 	unsigned long saddr;
 	int payload_size = 0, sent, sent_size;
 	char *data; 
-	char *payload="prueba";
+	char *payload;
 	saddr = inet_addr(argv[1]);
 	daddr = inet_addr(argv[2]);
-	payload_size = atoi(argv[3]);
+	payload=argv[3];
+	payload_size = strlen(argv[3]);
 	
 	//Calculate total packet size
 	int packet_size = sizeof (struct iphdr) + sizeof (struct udphdr) + payload_size;
@@ -33,7 +34,7 @@ int main(int argc, char **argv){
 	//Raw socket - if you use IPPROTO_ICMP, then kernel will fill in the correct ICMP header checksum, if IPPROTO_RAW, then it wont
 	int sockfd = socket (AF_INET, SOCK_RAW, IPPROTO_RAW);
 	
-	if (sockfd < 0) {
+	if (sockfd < 0){
 		perror("could not create socket");
 		return (0);
 	}
@@ -76,9 +77,10 @@ int main(int argc, char **argv){
 	//ip->check = in_cksum ((u16 *) ip, sizeof (struct iphdr));
 
   	udp->source = htons(50000);
-	udp->dest = htons(80);
+	udp->dest = htons(54321);
   	udp->len=htons(8 + payload_size);
 	udp->check = 0;
+	udp->check = in_cksum((unsigned short *)udp, sizeof(struct udphdr) + payload_size);
 	
 	struct sockaddr_in servaddr;
 	servaddr.sin_family = AF_INET;
@@ -89,14 +91,8 @@ int main(int argc, char **argv){
 	
 	while (1)
 	{
-	//	memset(packet + sizeof(struct iphdr) + sizeof(struct udphdr), rand() % 255, payload_size);
 		data=(packet + sizeof(struct iphdr) + sizeof(struct udphdr));
-	//	for(on=0;on<payload_size;on++)
-	//		*(data + on)=*(payload + on);
 		strcpy(data,payload);
-		//recalculate the udp header checksum since we are filling the payload with random characters everytime
-		udp->check = 0;
-		udp->check = in_cksum((unsigned short *)udp, sizeof(struct udphdr) + payload_size);
 		
 		if ( (sent_size = sendto(sockfd, packet, packet_size, 0, (struct sockaddr*) &servaddr, sizeof (servaddr))) < 1) 
 		{
@@ -107,7 +103,7 @@ int main(int argc, char **argv){
 		printf("%d packets sent\r", sent);
 		fflush(stdout);
 		
-		usleep(10000);	//microseconds
+		usleep(1000000);	//microseconds
 	}
 	
 	free(packet);
