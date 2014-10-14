@@ -1,7 +1,16 @@
 #include <argp.h>
 #include <argz.h>
-#include <stdlib.h>
 #include <arpa/inet.h>
+#include <netinet/ip.h>
+#include <netinet/ip_icmp.h>
+#include <netinet/udp.h>
+#include <netinet/tcp.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <sys/time.h>
+#include <unistd.h>
+
 
 #ifndef ICMP
 #define ICMP 1
@@ -21,6 +30,11 @@
 #ifndef HI_ADDR
 #define HI_ADDR 4294967295
 #endif
+
+typedef unsigned char u8;
+typedef unsigned short int u16;
+
+unsigned short in_cksum(unsigned short *ptr, int nbytes);
 
 const char *argp_program_bug_address = "xzamora@seguridad.unam.mx ";
 const char *argp_program_version = "version 1.0";
@@ -64,8 +78,8 @@ struct arguments{
 	char ip_ver;						/*IP Version*/
 	char protocol;						/*Protocol to send*/
 	char *argz;							/*All arguments*/
-	unsigned long dst_ip;			/*Destination ip*/
-	unsigned long src_ip;			/*Source ip*/
+	unsigned long daddr;			/*Destination ip*/
+	unsigned long saddr;			/*Source ip*/
 	char *payload;						/*Payload packet*/
 	size_t argz_len;					/*# of args*/
 	int syn,ack,fin,psh,rst,urg;	/*TCP Flags*/
@@ -108,7 +122,7 @@ static int parse_opt (int key, char *arg, struct argp_state *state){
 			a->payload=arg;
 		break;
 		case 's':/*Source IP*/
-			a->src_ip=inet_addr(arg);
+			a->saddr=inet_addr(arg);
 		break;
 		case 'v':/*Verbose*/
 			a->verbose=1;
@@ -147,15 +161,15 @@ static int parse_opt (int key, char *arg, struct argp_state *state){
 		break;
 		case ARGP_KEY_ARG:
 			argz_add (&a->argz, &a->argz_len, arg);
-			a->dst_ip=inet_addr(arg);
+			a->daddr=inet_addr(arg);
 		break;
 		case ARGP_KEY_INIT:
 			a->argz = 0;
 			a->argz_len = 0;
 			a->ip_ver=4;
 			a->protocol=ICMP;
-			a->src_ip=0;
-			a->dst_ip=0;
+			a->saddr=0;
+			a->daddr=0;
 			a->payload=NULL;
 			a->count=0;
 			a->sport=-1;
@@ -183,7 +197,7 @@ static int parse_opt (int key, char *arg, struct argp_state *state){
 				argp_usage(state);
 				argp_failure (state, 1, 0, "too few arguments");
 			}
-			if(a->src_ip >= HI_ADDR || a->dst_ip >= HI_ADDR)
+			if(a->saddr >= HI_ADDR || a->daddr >= HI_ADDR)
 				argp_failure (state, 1, 0, "Bad IP address, try again");
 			/*More than one protocol specified*/
 			if(count == 1)
@@ -220,31 +234,187 @@ static int parse_opt (int key, char *arg, struct argp_state *state){
 	}
 	return 0;
 }
-	struct argp argp = { options, parse_opt, args_doc, doc};
+struct argp argp = { options, parse_opt, args_doc, doc};
 
-int main (int argc, char **argv){
-	struct arguments arguments;
-	if (argp_parse (&argp, argc, argv, 0, 0, &arguments) == 0){
+int main(int argc, char **argv){
+	
+	struct arguments a;
+	if (argp_parse (&argp, argc, argv, 0, 0, &a) == 0){
 		printf("IP version:\t%i\nProtocol:\t%i\nDestination IP:\t%lu\nSource IP:\t%lu\nPayload:\t%s\nSYN:\t%i\nACK:\t%i\nFIN:\t%i\nPSH:\t%i\nRST:\t%i\nURG:\t%i\nVerbose:\t%i\nFast:\t%i\nFlood:\t%i\nSport:\t%i\nDport:\t%i\nCount:%i\n",
-			arguments.ip_ver,
-			arguments.protocol,
-			arguments.dst_ip,
-			arguments.src_ip,
-			arguments.payload,
-			arguments.syn,
-			arguments.ack,
-			arguments.fin,
-			arguments.psh,
-			arguments.rst,
-			arguments.urg,
-			arguments.verbose,
-			arguments.fast,
-			arguments.flood,
-			arguments.sport,
-			arguments.dport,
-			arguments.count
+			a.ip_ver,
+			a.protocol,
+			a.daddr,
+			a.saddr,
+			a.payload,
+			a.syn,
+			a.ack,
+			a.fin,
+			a.psh,
+			a.rst,
+			a.urg,
+			a.verbose,
+			a.fast,
+			a.flood,
+			a.sport,
+			a.dport,
+			a.count
 		);
 	}
-	return 0;
+
+	char *data; 
+	int packet_size, payload_size, sent, sent_size;
+	payload_size = strlen(a.payload);
+	
+	/*Check protocol*/
+	if(a.protocol == UDP)
+		packet_size = sizeof (struct iphdr) + sizeof (struct udphdr) + payload_size;
+	else if(a.protocol == TCP)
+		packet_size = sizeof (struct iphdr) + sizeof (struct tcphdr) + payload_size;
+	else
+		packet_size = sizeof (struct iphdr) + sizeof (struct icmphdr) + payload_size;
+	/*Allocating memory*/
+	char *packet = (char *) malloc (packet_size);
+	
+	//ip header
+	struct iphdr *ip = (struct iphdr *) packet;
+	struct udphdr *udp;
+	struct tcphdr *tcp;
+	struct icmphdr *icmp;
+	if(a.protocol == UDP){
+		udp = (struct udphdr *) (packet + sizeof (struct iphdr));
+	}
+	else 
+	if(a.protocol == TCP){
+		tcp = (struct tcphdr *) (packet + sizeof (struct iphdr));
+	}
+	else{
+		icmp = (struct icmphdr *) (packet + sizeof (struct iphdr));
+	}
+	
+	//Raw socket - if you use IPPROTO_ICMP, then kernel will fill in the correct ICMP header checksum, if IPPROTO_RAW, then it wont
+	int sockfd = socket (AF_INET, SOCK_RAW, IPPROTO_RAW);
+	
+	if (sockfd < 0){
+		perror("could not create socket");
+		return (0);
+	}
+	
+	int on = 1;
+	
+	// We shall provide IP headers
+	if (setsockopt (sockfd, IPPROTO_IP, IP_HDRINCL, (const char*)&on, sizeof (on)) == -1) {
+		perror("setsockopt");
+		return (0);
+	}
+	
+	//allow socket to send datagrams to broadcast addresses
+	if (setsockopt (sockfd, SOL_SOCKET, SO_BROADCAST, (const char*)&on, sizeof (on)) == -1) {
+		perror("setsockopt");
+		return (0);
+	}	
+	
+				   
+	if (!packet) {
+		perror("out of memory");
+		close(sockfd);
+		return (0);
+	}
+	
+	
+	//zero out the packet buffer
+	memset (packet, 0, packet_size);
+
+	ip->version = a.ip_ver;
+	ip->ihl = 5;
+	ip->tos = 0;
+	ip->tot_len = htons (packet_size);
+	ip->id = rand ();
+	ip->frag_off = 0;
+	ip->ttl = 255;
+	ip->protocol = a.protocol;
+	ip->saddr = a.saddr;
+	ip->daddr = a.daddr;
+
+	if(a.protocol == UDP){
+		udp->source		= htons(a.sport);
+		udp->dest		= htons(a.dport);
+		udp->len		= htons(8 + payload_size);
+		udp->check		= 0;
+		udp->check		= in_cksum((unsigned short *)udp, sizeof(struct udphdr) + payload_size);
+		data			= (packet + sizeof(struct iphdr) + sizeof(struct udphdr));
+	}
+	else if(a.protocol == TCP){
+		tcp->source	= a.sport;
+		tcp->dest	= a.dport;
+		tcp->fin	= a.fin;
+		tcp->syn	= a.syn;
+		tcp->rst	= a.rst;
+		tcp->psh	= a.psh;
+		tcp->ack	= a.ack;
+		tcp->urg	= a.urg;
+		tcp->check	= in_cksum((unsigned short *)tcp, sizeof(struct tcphdr) + payload_size);
+		data		= (packet + sizeof(struct iphdr) + sizeof(struct tcphdr));
+	}
+	else{
+		icmp->type			= ICMP_ECHO;
+		icmp->code			= 0;
+		icmp->un.echo.sequence = 0;
+		icmp->un.echo.id	= rand();
+		icmp->checksum		= 0;
+		icmp->checksum		= in_cksum((unsigned short *)icmp, sizeof(struct icmphdr) + payload_size);
+		data				= (packet + sizeof(struct iphdr) + sizeof(struct icmphdr));
+	}
+	
+	struct sockaddr_in servaddr;
+	servaddr.sin_family = AF_INET;
+	servaddr.sin_addr.s_addr = a.daddr;
+	memset(&servaddr.sin_zero, 0, sizeof (servaddr.sin_zero));
+	strcpy(data,a.payload);
+	puts("flooding...");
+	
+	while (1){
+		if ( (sent_size = sendto(sockfd, packet, packet_size, 0, (struct sockaddr*) &servaddr, sizeof (servaddr))) < 1){
+			perror("send failed\n");
+			break;
+		}
+		++sent;
+		printf("%d packets sent\r", sent);
+		fflush(stdout);
+		
+		usleep(1000000);	//microseconds
+	}
+	
+	free(packet);
+	close(sockfd);
+	
+	return (0);
+}
+
+/*
+	Function calculate checksum
+*/
+unsigned short in_cksum(unsigned short *ptr, int nbytes)
+{
+	register long sum;
+	u_short oddbyte;
+	register u_short answer;
+
+	sum = 0;
+	while (nbytes > 1) {
+		sum += *ptr++;
+		nbytes -= 2;
+	}
+
+	if (nbytes == 1) {
+		oddbyte = 0;
+		*((u_char *) & oddbyte) = *(u_char *) ptr;
+		sum += oddbyte;
+	}
+
+	sum = (sum >> 16) + (sum & 0xffff);
+	sum += (sum >> 16);
+	answer = ~sum;
+
+	return (answer);
 }
 
