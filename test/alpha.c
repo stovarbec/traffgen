@@ -364,11 +364,11 @@ int main(int argc, char **argv){
 	}
 	
 	if(a.protocol == IPPROTO_UDP){
-		udp->source		= htons(a.sport);
-		udp->dest		= htons(a.dport);
+		udp->source	= htons(a.sport);
+		udp->dest	= htons(a.dport);
 		udp->len		= htons(8 + payload_size);
-		udp->check		= 0;
-		udp->check		= in_cksum((unsigned short *)udp, sizeof(struct udphdr) + payload_size);
+		udp->check	= 0;
+		udp->check	= in_cksum((unsigned short *)udp, sizeof(struct udphdr) + payload_size);
 		data			= (packet + header_length + sizeof(struct udphdr));
 	}
 	else if(a.protocol == IPPROTO_TCP){
