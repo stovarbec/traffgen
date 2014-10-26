@@ -201,6 +201,8 @@ static int parse_opt (int key, char *arg, struct argp_state *state){
 			}
 			/*Check IPv6 address(es)*/
 			if(a->ip_ver == 6){
+				if(a->protocol==IPPROTO_ICMP)
+					a->protocol=IPPROTO_ICMPV6;
 				if(a->sa != NULL)
 					if (inet_pton(AF_INET6, a->sa, &(a->saddr6)) != 1)
 						argp_failure (state, 1, 0, "Bad source IP address, try again");
@@ -254,6 +256,7 @@ int main(int argc, char **argv){
 	struct tcphdr *tcp;
 	struct ip6_hdr *ip6;
 	struct icmphdr *icmp;
+	struct icmp6_hdr *icmp6;
 	struct sockaddr_in servaddr;
 	struct sockaddr_in6 servaddr6;
 	
@@ -314,6 +317,8 @@ int main(int argc, char **argv){
 		packet_size = header_length + sizeof (struct udphdr) + payload_size;
 	else if(a.protocol == IPPROTO_TCP)
 		packet_size = header_length + sizeof (struct tcphdr) + payload_size;
+	else if(a.protocol == IPPROTO_ICMPV6)
+		packet_size = header_length + sizeof (struct icmp6_hdr) + payload_size;
 	else
 		packet_size = header_length + sizeof (struct icmphdr) + payload_size;
 	
@@ -328,6 +333,8 @@ int main(int argc, char **argv){
 		udp = (struct udphdr *) (packet + header_length);
 	else if(a.protocol == IPPROTO_TCP)
 		tcp = (struct tcphdr *) (packet + header_length);
+	else if(a.protocol == IPPROTO_ICMPV6)
+		icmp6 = (struct icmp6_hdr *) (packet + header_length);
 	else
 		icmp = (struct icmphdr *) (packet + header_length);
 	
@@ -365,22 +372,28 @@ int main(int argc, char **argv){
 		data			= (packet + header_length + sizeof(struct udphdr));
 	}
 	else if(a.protocol == IPPROTO_TCP){
-		tcp->source		= htons(a.sport);
-		tcp->dest		= htons(a.dport);
+		tcp->source	= htons(a.sport);
+		tcp->dest	= htons(a.dport);
 		tcp->fin		= a.fin;
 		tcp->syn		= a.syn;
 		tcp->rst		= a.rst;
 		tcp->psh		= a.psh;
 		tcp->ack		= a.ack;
 		tcp->urg		= a.urg;
-		tcp->seq 		= 0;
-		tcp->doff 		= 5;	
-		tcp->check		= 0;
-		tcp->window 	= htons (5840);
-		tcp->urg_ptr	= 0;
-		tcp->ack_seq	= 0;
-		tcp->check		= in_cksum((unsigned short *)tcp, sizeof(struct tcphdr) + payload_size);
+		tcp->seq 	= 0;
+		tcp->doff 	= 5;	
+		tcp->check	= 0;
+		tcp->window = htons (5840);
+		tcp->urg_ptr= 0;
+		tcp->ack_seq= 0;
+		tcp->check	= in_cksum((unsigned short *)tcp, sizeof(struct tcphdr) + payload_size);
 		data			= (packet + header_length + sizeof(struct tcphdr));
+	}
+	else if(a.protocol == IPPROTO_ICMPV6){
+		icmp6->icmp6_type	= ICMP6_ECHO_REQUEST;
+		icmp6->icmp6_code = 0;
+		icmp6->icmp6_cksum= in_cksum((unsigned short *)icmp6, sizeof(struct icmp6_hdr) + payload_size);
+		data					= (packet + header_length + sizeof(struct icmp6_hdr));
 	}
 	else{
 		icmp->type		= ICMP_ECHO;
