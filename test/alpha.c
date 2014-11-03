@@ -29,13 +29,13 @@ static char doc[]="Simple packet's crafter\vWith great power comes great respons
 static char args_doc[]="IP_DST";
 struct argp_option options[] ={
 	{0,0,0,0, "IP Version:\n",1},
-	{"ip4"		,'4'	,0			,0,"IPv4 Packet"},
-	{"ip6"		,'6'	,0			,0,"IPv6 Packet"},
+	{"ip4",'4',0,0,"IPv4 Packet"},
+	{"ip6",'6',0,0,"IPv6 Packet"},
 	
 	{0,0,0,0, "Protocols:\n",2},
-	{"icmp"		,1111	,0			,0,"ICMP Packet"},
-	{"udp"		,2222	,0			,0,"UDP Packet"},
-	{"tcp"		,3333	,0			,0,"TCP Packet"},
+	{"icmp"	,1111,0,0,"ICMP Packet"},
+	{"udp"	,2222,0,0,"UDP Packet"},
+	{"tcp"	,3333,0,0,"TCP Packet"},
 	
 	{0,0,0,0, "The following options could be grouped together after --tcp flag:\n",3},
 	{0,'S',0,0,"Set SYNCHRONIZATION Flag"},
@@ -46,35 +46,33 @@ struct argp_option options[] ={
 	{0,'U',0,0,"Set URGENT Flag"},
 
 	{0,0,0,0, "Number of packets:\n",5},
-	{"fast"		,1000	,0			,0,"Send 100 packets per second"},
-	{"flood"		,1001	,0			,0,"Send many packets as possible"},
-	{"count"		,'c'	,"NUM"	,0,"Send NUM packets, one per second"},
+	{"fast"	,1000	,0	,0,"Send 100 packets per second"},
+	{"flood",1001	,0	,0,"Send many packets as possible"},
+	{"count",'c'	,"NUM"	,0,"Send NUM packets, one per second"},
 
 	{0,0,0,0, "Customize your packets:\n",4},
-	{"sport"		,'x'	,"NUM"	,0,"Source port"},
-	{"dport"		,'y'	,"NUM"	,0,"Destination port"},
-	{"saddr"		,'s'	,"IP"		,0,"Set a fake source IP address"},
-	{"payload"	,'p'	,"STR"	,0,"Include a message in the payload"},
+	{"sport"	,'x',"NUM"	,0,"Source port"},
+	{"dport"	,'y',"NUM"	,0,"Destination port"},
+	{"saddr"	,'s',"IP"	,0,"Set a fake source IP address"},
+	{"payload"	,'p',"STR"	,0,"Include a message in the payload"},
 	
 	{0,0,0,0, "Miscelaneous:\n",-1},
-	{"verbose"	,'v'	,0			,0,"Produce verbose output" },
+	{"verbose"	,'v',0,0,"Produce verbose output" },
 	{0}
 };
 struct arguments{
-	char ip_ver;						/*IP Version*/
-	char protocol;						/*Protocol to send*/
-	char *argz;							/*All arguments*/
-	unsigned long daddr;				/*Destination ip*/
-	unsigned long saddr;				/*Source ip*/
-	char *payload;						/*Payload packet*/
-	size_t argz_len;					/*# of args*/
-	int syn,ack,fin,psh,rst,urg;		/*TCP Flags*/
-	int verbose,fast,flood;				/*Boolean options*/
-	unsigned int sport,dport;			/*Port number*/
-	unsigned int count;					/*Number of packets to send*/
-	int proto,port,tcpf;				/*Control flags*/
-	//uint8_t saddr6[16];
-	//uint8_t daddr6[16];
+	char ip_ver;			/*IP Version*/
+	char protocol;			/*Protocol to send*/
+	char *argz;			/*All arguments*/
+	unsigned long daddr;		/*Destination ip*/
+	unsigned long saddr;		/*Source ip*/
+	char *payload;			/*Payload packet*/
+	size_t argz_len;		/*# of args*/
+	int syn,ack,fin,psh,rst,urg;	/*TCP Flags*/
+	int verbose,fast,flood;		/*Boolean options*/
+	unsigned int sport,dport;	/*Port number*/
+	unsigned int count;		/*Number of packets to send*/
+	int proto,port,tcpf;		/*Control flags*/
 	struct in6_addr saddr6;
 	struct in6_addr daddr6;
 	char *sa,*da;
@@ -192,7 +190,7 @@ static int parse_opt (int key, char *arg, struct argp_state *state){
 				argp_failure (state, 1, 0, "too few arguments");
 			}
 			/*Check IPv4 address(es)*/
-			if(a->ip_ver == 4){
+			if(a->ip_ver == IPPROTO_IPIP){
 				if(a->sa != NULL)
 					if (inet_pton(AF_INET, a->sa, &(a->saddr)) != 1)
 						argp_failure (state, 1, 0, "Bad source IP address, try again");
@@ -200,7 +198,7 @@ static int parse_opt (int key, char *arg, struct argp_state *state){
 					argp_failure (state, 1, 0, "Bad destination IP address, try again");
 			}
 			/*Check IPv6 address(es)*/
-			if(a->ip_ver == 6){
+			if(a->ip_ver == IPPROTO_TCP){
 				if(a->protocol==IPPROTO_ICMP)
 					a->protocol=IPPROTO_ICMPV6;
 				if(a->sa != NULL)
@@ -213,13 +211,13 @@ static int parse_opt (int key, char *arg, struct argp_state *state){
 			if(a->proto>1)
 				argp_failure (state, 1, 0, "You must specify only one protocol");
 			/*IPPROTO_ICMP with port*/
-			if(a->protocol==IPPROTO_ICMP && a->port>0)
+			if((a->protocol==IPPROTO_ICMP || a->protocol==IPPROTO_ICMPV6) && (a->port)>0)
 				argp_failure (state, 1, 0, "You can not specify a port for IPPROTO_ICMP");
 			/*IPPROTO_ICMP with tcp flags*/
-			if(a->protocol==IPPROTO_ICMP && a->tcpf>0)
+			if(a->protocol==IPPROTO_ICMP && (a->tcpf)>0)
 				argp_failure (state, 1, 0, "You can not specify a tcp flags for IPPROTO_ICMP");
 			/*IPPROTO_UDP with tcp flags*/
-			if(a->protocol==IPPROTO_UDP && a->tcpf>0)
+			if(a->protocol==IPPROTO_UDP && (a->tcpf)>0)
 				argp_failure (state, 1, 0, "You can not specify a tcp flags for IPPROTO_UDP");
 			/*IPPROTO_UDP or IPPROTO_TCP without destination port*/
 			if(a->dport==-1 && (a->protocol==IPPROTO_UDP || a->protocol==IPPROTO_TCP))
@@ -286,15 +284,15 @@ int main(int argc, char **argv){
 	on=1;
 	/*Creating RAW Socket*/
 	if(a.ip_ver==IPPROTO_IPIP){
-		servaddr.sin_family			= AF_INET;
+		servaddr.sin_family		= AF_INET;
 		servaddr.sin_addr.s_addr	= a.daddr;
-		header_length					= sizeof (struct iphdr);
+		header_length			= sizeof (struct iphdr);
 		sockfd = socket (AF_INET, SOCK_RAW, IPPROTO_RAW);
 	}
 	else{
 		servaddr6.sin6_family		= AF_INET6;
-		servaddr6.sin6_addr			= a.daddr6;
-		servaddr6.sin6_port			= 0;
+		servaddr6.sin6_addr		= a.daddr6;
+		servaddr6.sin6_port		= 0;
 		servaddr6.sin6_flowinfo		= 0;
 		servaddr6.sin6_scope_id		= 0;
 		header_length					= sizeof(struct ip6_hdr);
@@ -303,15 +301,16 @@ int main(int argc, char **argv){
 	/*Socket error*/
 	if (sockfd < 0){ perror("could not create socket");return (0);}
 	/*We shall provide IP headers*/
-	if (setsockopt (sockfd, IPPROTO_IP, IP_HDRINCL, (const char*)&on, sizeof (on)) == -1) {
-		perror("setsockopt"); return (0);
+	if(a.ip_ver==IPPROTO_IPIP){
+		if (setsockopt (sockfd, IPPROTO_IP, IP_HDRINCL, (const char*)&on, sizeof (on)) == -1) {
+			perror("setsockopt"); return (0);
+		}
+		//allow socket to send datagrams to broadcast addresses
+		if (setsockopt (sockfd, SOL_SOCKET, SO_BROADCAST, (const char*)&on, sizeof (on)) == -1) {
+			perror("setsockopt"); return (0);
+		}	   
 	}
-	//allow socket to send datagrams to broadcast addresses
-	if (setsockopt (sockfd, SOL_SOCKET, SO_BROADCAST, (const char*)&on, sizeof (on)) == -1) {
-		perror("setsockopt"); return (0);
-	}	   
 	if (!packet){perror("out of memory"); close(sockfd); return (0);}
-	
 	/*Check protocol*/
 	if(a.protocol == IPPROTO_UDP)
 		packet_size = header_length + sizeof (struct udphdr) + payload_size;
@@ -342,21 +341,21 @@ int main(int argc, char **argv){
 	memset (packet, 0, packet_size);
 
 	if(a.ip_ver==IPPROTO_IPIP){
-		ip->version		= a.ip_ver;
-		ip->saddr		= a.saddr;
-		ip->daddr		= a.daddr;
-		ip->ihl			= 5;
-		ip->tos			= 0;
+		ip->version	= a.ip_ver;
+		ip->saddr	= a.saddr;
+		ip->daddr	= a.daddr;
+		ip->ihl		= 5;
+		ip->tos		= 0;
 		ip->frag_off	= 0;
-		ip->ttl			= 255;
-		ip->id			= rand ();
+		ip->ttl		= 255;
+		ip->id		= rand ();
 		ip->protocol	= a.protocol;
-		ip->tot_len		= htons (packet_size);
+		ip->tot_len	= htons (packet_size);
 	}
 	else{
 		ip6->ip6_flow	= 0;
 		ip6->ip6_vfc	= 0x60;
-		ip6->ip6_hlim	= htons(255);
+		ip6->ip6_hlim	= 0xff;
 		ip6->ip6_plen	= htons(packet_size-40);
 		ip6->ip6_nxt	= a.protocol;
 		ip6->ip6_src	= a.saddr6;
@@ -366,7 +365,7 @@ int main(int argc, char **argv){
 	if(a.protocol == IPPROTO_UDP){
 		udp->source	= htons(a.sport);
 		udp->dest	= htons(a.dport);
-		udp->len		= htons(8 + payload_size);
+		udp->len	= htons(8 + payload_size);
 		udp->check	= 0;
 		udp->check	= in_cksum((unsigned short *)udp, sizeof(struct udphdr) + payload_size);
 		data			= (packet + header_length + sizeof(struct udphdr));
@@ -374,42 +373,50 @@ int main(int argc, char **argv){
 	else if(a.protocol == IPPROTO_TCP){
 		tcp->source	= htons(a.sport);
 		tcp->dest	= htons(a.dport);
-		tcp->fin		= a.fin;
-		tcp->syn		= a.syn;
-		tcp->rst		= a.rst;
-		tcp->psh		= a.psh;
-		tcp->ack		= a.ack;
-		tcp->urg		= a.urg;
+		tcp->fin	= a.fin;
+		tcp->syn	= a.syn;
+		tcp->rst	= a.rst;
+		tcp->psh	= a.psh;
+		tcp->ack	= a.ack;
+		tcp->urg	= a.urg;
 		tcp->seq 	= 0;
 		tcp->doff 	= 5;	
 		tcp->check	= 0;
-		tcp->window = htons (5840);
-		tcp->urg_ptr= 0;
-		tcp->ack_seq= 0;
+		tcp->window	= htons (5840);
+		tcp->urg_ptr	= 0;
+		tcp->ack_seq	= 0;
 		tcp->check	= in_cksum((unsigned short *)tcp, sizeof(struct tcphdr) + payload_size);
-		data			= (packet + header_length + sizeof(struct tcphdr));
+		data		= (packet + header_length + sizeof(struct tcphdr));
 	}
 	else if(a.protocol == IPPROTO_ICMPV6){
 		icmp6->icmp6_type	= ICMP6_ECHO_REQUEST;
-		icmp6->icmp6_code = 0;
-		icmp6->icmp6_cksum= in_cksum((unsigned short *)icmp6, sizeof(struct icmp6_hdr) + payload_size);
-		data					= (packet + header_length + sizeof(struct icmp6_hdr));
+		icmp6->icmp6_code	= 0;
+		icmp6->icmp6_cksum	= in_cksum((unsigned short *)icmp6, sizeof(struct icmp6_hdr) + payload_size);
+		data			= (packet + header_length + sizeof(struct icmp6_hdr));
 	}
 	else{
-		icmp->type		= ICMP_ECHO;
-		icmp->code		= 0;
+		icmp->type	= ICMP_ECHO;
+		icmp->code	= 0;
 		icmp->checksum	= 0;
 		icmp->checksum	= in_cksum((unsigned short *)icmp, sizeof(struct icmphdr) + payload_size);
 		icmp->un.echo.id= rand();
 		icmp->un.echo.sequence = 0;
-		data				= (packet + header_length + sizeof(struct icmphdr));
+		data		= (packet + header_length + sizeof(struct icmphdr));
 	}
 	strcpy(data,a.payload);
 	//memset(&servaddr.sin_zero, 0, sizeof (servaddr.sin_zero));
 	while (1){
-		if ((sent_size = sendto(sockfd, packet, packet_size, 0, (struct sockaddr*) &servaddr, sizeof (servaddr))) < 1){
-			perror("send failed\n");
-			break;
+		if(a.ip_ver==IPPROTO_IPIP){
+			if ((sent_size = sendto(sockfd, packet, packet_size, 0, (struct sockaddr*) &servaddr, sizeof (servaddr))) < 1){
+				perror("send failed\n");
+				break;
+			}
+		}
+		else{
+			if ((sent_size = sendto(sockfd, packet, packet_size, 0, (struct sockaddr*) &servaddr6, sizeof (servaddr6))) < 1){
+				perror("send failed\n");
+				break;
+			}
 		}
 		++sent;
 		printf("%d packets sent\r", sent);

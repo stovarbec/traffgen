@@ -19,7 +19,7 @@ int main(int argc, char **argv){
 	
 	char *data;
 	int packet_size, payload_size, sent, sent_size;
-	payload_size = 7;//a.payload);
+	payload_size = 6;//a.payload);
 	packet_size = sizeof (struct ip6_hdr) + sizeof (struct udphdr) + payload_size;
 	char *packet = (char *) malloc (packet_size);
 	struct ip6_hdr *ip6 = (struct ip6_hdr *) packet;
@@ -31,7 +31,7 @@ int main(int argc, char **argv){
 	ip6->ip6_flow	= 0;
 	ip6->ip6_vfc	= 0x60;
 	ip6->ip6_hlim	= htons(1024);
-	ip6->ip6_plen	= htons(packet_size-40-payload_size);
+	ip6->ip6_plen	= htons(packet_size-40);
 	ip6->ip6_nxt	= 17;//a.protocol;
 //	ip6->ip6_src	= a.saddr;
 //	ip6->ip6_dst	= a.daddr;
@@ -43,15 +43,12 @@ int main(int argc, char **argv){
 		puts("Correcto");
 	}
 
-//	if(a.protocol == UDP){
-		udp->source		= htons(50000);//a.sport);
-		udp->dest		= htons(80);//a.dport);
-		udp->len			= htons(8 + payload_size);
-		udp->check		= 0;
-		udp->check		= in_cksum((unsigned short *)udp, sizeof(struct udphdr) + payload_size);
-		data			= (packet + sizeof(struct ip6_hdr) + sizeof(struct udphdr));	
-		//strcpy(data,argv[3]);
-//	}
+	udp->source	= htons(50000);//a.sport);
+	udp->dest	= htons(80);//a.dport);
+	udp->len		= htons(8 + payload_size);
+	udp->check	= 0;
+	udp->check	= in_cksum((unsigned short *)udp, sizeof(struct udphdr) + payload_size);
+	data			= (packet + sizeof(struct ip6_hdr) + sizeof(struct udphdr));	
 	int sockfd = socket (AF_INET6, SOCK_RAW, IPPROTO_RAW);
 	
 	if (sockfd < 0){
@@ -61,33 +58,19 @@ int main(int argc, char **argv){
 	
 	int on = 1;
 	
-	// We shall provide IP headers
-	/*/
-	if (setsockopt (sockfd, IPPROTO_IPV6, IP_HDRINCL, (const char*)&on, sizeof (on)) == -1) {
-		perror("setsockopt");
-		return (0);
-	}
-	*/
-	//allow socket to send datagrams to broadcast addresses
-	/*
-	if (setsockopt (sockfd, SOL_SOCKET, SO_BROADCAST, (const char*)&on, sizeof (on)) == -1) {
-		perror("setsockopt");
-		return (0);
-	}	
-	*/		   
 	if (!packet) {
 		perror("out of memory");
 		close(sockfd);
 		return (0);
 	}
-	puts("Exito");
 	strcpy(data,"prueba"); 
 	struct sockaddr_in6 servaddr;
-    servaddr.sin6_family	= AF_INET6;
-    servaddr.sin6_port		= 0;
-    servaddr.sin6_flowinfo	= 0;
-    servaddr.sin6_scope_id	= 0;
+   servaddr.sin6_family	= AF_INET6;
+   servaddr.sin6_port		= 0;
+   servaddr.sin6_flowinfo	= 0;
+   servaddr.sin6_scope_id	= 0;
 	servaddr.sin6_addr		= ip6->ip6_dst;
+	puts("Exito");
 	while (1){
 		if ( (sent_size = sendto(sockfd, packet, packet_size, 0, (struct sockaddr*) &servaddr, sizeof (servaddr))) < 1){
 			perror("send failed\n");
@@ -99,7 +82,6 @@ int main(int argc, char **argv){
 		
 		usleep(1000000);	//microseconds
 	}
-//	int ret = sendto(sock, packet, ip->length, 0, (struct sockaddr *) &remote, sizeof(remote));
 
 }
 unsigned short in_cksum(unsigned short *ptr, int nbytes)
