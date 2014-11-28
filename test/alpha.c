@@ -76,6 +76,7 @@ struct arguments{
 	struct in6_addr saddr6;
 	struct in6_addr daddr6;
 	char *sa,*da;
+	int delay;
 };
 static int parse_opt (int key, char *arg, struct argp_state *state){
 	struct arguments *a = state->input;
@@ -93,10 +94,10 @@ static int parse_opt (int key, char *arg, struct argp_state *state){
 			a->proto++;
 		break;
 		case 1000:/*Send fast*/
-			a->fast=1;
+			a->fast++;
 		break;
 		case 1001:/*Send flood*/
-			a->flood=1;
+			a->flood++;
 		break;
 		case '4':/*IPv4*/
 			a->ip_ver=4;
@@ -177,6 +178,7 @@ static int parse_opt (int key, char *arg, struct argp_state *state){
 			a->proto=0;
 			a->port=0;
 			a->tcpf=0;
+			a->delay=1000000;
 		break;
 		case ARGP_KEY_END:{
 			size_t count = argz_count (a->argz, a->argz_len);
@@ -230,6 +232,12 @@ static int parse_opt (int key, char *arg, struct argp_state *state){
 				srand(time(NULL));
 				a->sport=(rand()%(HI_PORT-LO_PORT))+LO_PORT;
 			}
+			if(a->flood > 0)
+				a->delay=0;
+			else 
+				if(a->fast > 0)
+					a->delay=a->delay-(a->fast*100000);
+			
 		}
 		break;
 	}
@@ -405,7 +413,7 @@ int main(int argc, char **argv){
 	}
 	strcpy(data,a.payload);
 	//memset(&servaddr.sin_zero, 0, sizeof (servaddr.sin_zero));
-	while (1){
+	while (a.count > 0){
 		if(a.ip_ver==IPPROTO_IPIP){
 			if ((sent_size = sendto(sockfd, packet, packet_size, 0, (struct sockaddr*) &servaddr, sizeof (servaddr))) < 1){
 				perror("send failed\n");
@@ -419,9 +427,10 @@ int main(int argc, char **argv){
 			}
 		}
 		++sent;
+		a.count--;
 		printf("%d packets sent\r", sent);
 		fflush(stdout);
-		usleep(1000000);	//microseconds
+		usleep(a.delay);	//microseconds
 	}
 	free(packet);
 	close(sockfd);
