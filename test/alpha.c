@@ -163,7 +163,7 @@ static int parse_opt (int key, char *arg, struct argp_state *state){
 			a->sa=NULL;
 			a->da=NULL;
 			a->payload="";
-			a->count=0;
+			a->count=-1;
 			a->sport=-1;
 			a->dport=-1;
 			a->syn=0;
@@ -172,7 +172,7 @@ static int parse_opt (int key, char *arg, struct argp_state *state){
 			a->psh=0;
 			a->rst=0;
 			a->urg=0;
-			a->fast=0;
+			a->fast=1;
 			a->flood=0;
 			a->verbose=0;
 			a->proto=0;
@@ -413,7 +413,7 @@ int main(int argc, char **argv){
 	}
 	strcpy(data,a.payload);
 	//memset(&servaddr.sin_zero, 0, sizeof (servaddr.sin_zero));
-	while (a.count > 0){
+	while (a.count > 0 || a.count == -1){
 		if(a.ip_ver==IPPROTO_IPIP){
 			if ((sent_size = sendto(sockfd, packet, packet_size, 0, (struct sockaddr*) &servaddr, sizeof (servaddr))) < 1){
 				perror("send failed\n");
