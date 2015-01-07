@@ -1,3 +1,21 @@
+/**
+ * @file traffgen.c
+ * @author Tovar Balderas Sergio Anduin 
+ * @author Zamora Parra Xocoyotzin Carlos 
+ * @date 17 Octubre 2014
+ * @brief Network traffic generator for stress testing
+ *
+ * Here typically goes a more extensive explanation of what the header
+ * defines. Doxygens tags are words preceeded by either a backslash @\
+ * or by an at symbol @@.
+ * @see Coding Style and Doxygen Documentation - https://www.cs.cmu.edu/~410/doc/doxygen.html
+ * @see www.seguridad.unam.mx
+ * @see tic.unam.mx
+ * @see www.unam.mx
+ */
+#ifndef _BOX_PROTOTYPES_DOXYGEN_H
+#  define _BOX_PROTOTYPES_DOXYGEN_H
+
 #include <argp.h>
 #include <argz.h>
 #include <arpa/inet.h>
@@ -22,7 +40,7 @@
 
 unsigned short in_cksum(unsigned short *, int);
 
-const char *argp_program_bug_address = "xzamora@seguridad.unam.mx ";
+const char *argp_program_bug_address = "xzamora@seguridad.unam.mx and stovar@seguridad.unam.mx";
 const char *argp_program_version = "version 1.0";
 
 static char doc[]="Simple packet's crafter\vWith great power comes great responsability";
@@ -60,92 +78,102 @@ struct argp_option options[] ={
 	{"verbose"	,'v',0,0,"Produce verbose output" },
 	{0}
 };
+/**
+ * @brief Struct for arguments on command line
+ *
+ * These arguments define the variables that you can use the program from the command line.
+ */
 struct arguments{
-	char ip_ver;			/*IP Version*/
-	char protocol;			/*Protocol to send*/
-	char *argz;			/*All arguments*/
-	unsigned long daddr;		/*Destination ip*/
-	unsigned long saddr;		/*Source ip*/
-	char *payload;			/*Payload packet*/
-	size_t argz_len;		/*# of args*/
-	int syn,ack,fin,psh,rst,urg;	/*TCP Flags*/
-	int verbose,fast,flood;		/*Boolean options*/
-	unsigned int sport,dport;	/*Port number*/
-	unsigned int count;		/*Number of packets to send*/
-	int proto,port,tcpf;		/*Control flags*/
-	struct in6_addr saddr6;
-	struct in6_addr daddr6;
-	char *sa,*da;
-	int delay;
+	char ip_ver;				/**< IP Version*/
+	char protocol;				/**< Protocol to send*/
+	char *argz;					/**< All arguments*/
+	unsigned long daddr;		/**< Destination ip*/
+	unsigned long saddr;		/**< Source ip*/
+	char *payload;				/**< Payload packet*/
+	size_t argz_len;			/**< # of args*/
+	int syn,ack,fin,psh,rst,urg;/**< TCP Flags*/
+	int verbose,fast,flood;		/**< Boolean options*/
+	unsigned int sport,dport;	/**< Port number*/
+	unsigned int count;			/**< Number of packets to send*/
+	int proto,port,tcpf;		/**< Control flags*/
+	struct in6_addr saddr6;		/**< Struct for source inet address IPv6*/
+	struct in6_addr daddr6;		/**< Struct for destination inet address IPv6*/
+	char *sa,*da;				
+	int delay;					/**< Delay */
 };
+/**
+ * @brief Function to validate arguments
+ *
+ * The arguments are validated for each of the options on the command line.
+ */
 static int parse_opt (int key, char *arg, struct argp_state *state){
 	struct arguments *a = state->input;
 	switch (key){
-		case 1111:/*ICMP Protocol*/
+		case 1111:		/**< ICMP Protocol*/
 			a->protocol=IPPROTO_ICMP;
 			a->proto++;
 		break;
-		case 2222:/*UDP Protocol*/
+		case 2222:		/**< UDP Protocol*/
 			a->protocol=IPPROTO_UDP;
 			a->proto++;
 		break;
-		case 3333:/*TCP Protocol*/
+		case 3333:		/**< TCP Protocol*/
 			a->protocol=IPPROTO_TCP;
 			a->proto++;
 		break;
-		case 1000:/*Send fast*/
+		case 1000:		/**< Send fast packets*/
 			a->fast++;
 		break;
-		case 1001:/*Send flood*/
+		case 1001:		/**< Send flood*/
 			a->flood++;
 		break;
-		case '4':/*IPv4*/
+		case '4':		/**< IPv4*/
 			a->ip_ver=4;
 		break;
-		case '6':/*IPv6*/
+		case '6':		/**< IPv6*/
 			a->ip_ver=6;
 		break;
-		case 'c':/*Count*/
+		case 'c':		/**< Count the packets*/
 			a->count=(unsigned int)atoi(arg);
 		break;
-		case 'p':/*Payload*/
+		case 'p':		/**< Payload*/
 			a->payload=arg;
 		break;
-		case 's':/*Source IP*/
+		case 's':		/**< Source IP*/
 			a->sa=arg;
 		break;
-		case 'v':/*Verbose*/
+		case 'v':		/**< Verbose*/
 			a->verbose=1;
 		break;
-		case 'x':/*SRC Port*/
+		case 'x':		/**< Source Port*/
 			a->sport=(unsigned int)atoi(arg);
 			a->port++;
 		break;
-		case 'y':/*DST Port*/
+		case 'y':		/**< Destination Port*/
 			a->dport=(unsigned int)atoi(arg);
 			a->port++;
 		break;
-		case 'S':/*SYN Flag*/
+		case 'S':		/**< SYN Flag*/
 			a->syn=1;
 			a->tcpf++;
 		break;
-		case 'A':/*ACK Flag*/
+		case 'A':		/**< ACK Flag*/
 			a->ack=1;
 			a->tcpf++;
 		break;
-		case 'F':/*FIN Flag*/
+		case 'F':		/**< FIN Flag*/
 			a->fin=1;
 			a->tcpf++;
 		break;
-		case 'P':/*PSH Flag*/
+		case 'P':		/**< PSH Flag*/
 			a->psh=1;
 			a->tcpf++;
 		break;
-		case 'R':/*RST Flag*/
+		case 'R':		/**< RST Flag*/
 			a->rst=1;
 			a->tcpf++;
 		break;
-		case 'U':/*URG Flag*/
+		case 'U':		/**< URG Flag*/
 			a->urg=1;
 			a->tcpf++;
 		break;
@@ -153,7 +181,7 @@ static int parse_opt (int key, char *arg, struct argp_state *state){
 			argz_add (&a->argz, &a->argz_len, arg);
 			a->da=arg;
 		break;
-		case ARGP_KEY_INIT:
+		case ARGP_KEY_INIT:	/**< Initialize variables from the command line*/
 			a->argz = 0;
 			a->argz_len = 0;
 			a->ip_ver=4;
@@ -182,8 +210,7 @@ static int parse_opt (int key, char *arg, struct argp_state *state){
 		break;
 		case ARGP_KEY_END:{
 			size_t count = argz_count (a->argz, a->argz_len);
-			/*Check only one argument*/
-			if (count > 1){
+			if (count > 1){				/**< Check only one argument*/
 				argp_usage(state);
 				argp_failure (state, 1, 0, "too many arguments");
 			}
@@ -191,16 +218,14 @@ static int parse_opt (int key, char *arg, struct argp_state *state){
 				argp_usage(state);
 				argp_failure (state, 1, 0, "too few arguments");
 			}
-			/*Check IPv4 address(es)*/
-			if(a->ip_ver == IPPROTO_IPIP){
+			if(a->ip_ver == IPPROTO_IPIP){	/**< Check IPv4 address(es)*/
 				if(a->sa != NULL)
 					if (inet_pton(AF_INET, a->sa, &(a->saddr)) != 1)
 						argp_failure (state, 1, 0, "Bad source IP address, try again");
 				if (inet_pton(AF_INET, a->da, &(a->daddr)) != 1)
 					argp_failure (state, 1, 0, "Bad destination IP address, try again");
 			}
-			/*Check IPv6 address(es)*/
-			if(a->ip_ver == IPPROTO_TCP){
+			if(a->ip_ver == IPPROTO_TCP){	/**< Check IPv6 address(es)*/
 				if(a->protocol==IPPROTO_ICMP)
 					a->protocol=IPPROTO_ICMPV6;
 				if(a->sa != NULL)
@@ -209,42 +234,45 @@ static int parse_opt (int key, char *arg, struct argp_state *state){
 				if (inet_pton(AF_INET6, a->da, &(a->daddr6)) != 1)
 					argp_failure (state, 1, 0, "Bad destination IP address, try again");
 			}
-			/*More than one protocol specified*/
-			if(a->proto>1)
+			if(a->proto>1)	/**< More than one protocol specified*/
 				argp_failure (state, 1, 0, "You must specify only one protocol");
-			/*IPPROTO_ICMP with port*/
-			if((a->protocol==IPPROTO_ICMP || a->protocol==IPPROTO_ICMPV6) && (a->port)>0)
+			if((a->protocol==IPPROTO_ICMP || a->protocol==IPPROTO_ICMPV6) && (a->port)>0) /**< IPPROTO_ICMP with port*/
 				argp_failure (state, 1, 0, "You can not specify a port for IPPROTO_ICMP");
-			/*IPPROTO_ICMP with tcp flags*/
-			if(a->protocol==IPPROTO_ICMP && (a->tcpf)>0)
+			if(a->protocol==IPPROTO_ICMP && (a->tcpf)>0)	/**< IPPROTO_ICMP with tcp flags*/
 				argp_failure (state, 1, 0, "You can not specify a tcp flags for IPPROTO_ICMP");
-			/*IPPROTO_UDP with tcp flags*/
-			if(a->protocol==IPPROTO_UDP && (a->tcpf)>0)
+			if(a->protocol==IPPROTO_UDP && (a->tcpf)>0)	/**< IPPROTO_UDP with tcp flags*/
 				argp_failure (state, 1, 0, "You can not specify a tcp flags for IPPROTO_UDP");
-			/*IPPROTO_UDP or IPPROTO_TCP without destination port*/
-			if(a->dport==-1 && (a->protocol==IPPROTO_UDP || a->protocol==IPPROTO_TCP))
+			if(a->dport==-1 && (a->protocol==IPPROTO_UDP || a->protocol==IPPROTO_TCP))	/**< IPPROTO_UDP or IPPROTO_TCP without destination port*/
 				argp_failure (state, 1, 0, "You must specify a destination port");
-			/*Destination port number out of range*/
-			if((a->protocol==IPPROTO_UDP || a->protocol==IPPROTO_TCP) && (a->dport < 1 || a->dport > HI_PORT) )
+			if((a->protocol==IPPROTO_UDP || a->protocol==IPPROTO_TCP) && (a->dport < 1 || a->dport > HI_PORT) )	/**< Destination port number out of range*/
 				argp_failure (state, 1, 0, "Port number out of range. It must be between 1 and 65535");
-			/*Source port number out of range, set random*/
-			if((a->protocol==IPPROTO_UDP || a->protocol==IPPROTO_TCP) && (a->sport < 1 || a->sport > HI_PORT) ){
+			if((a->protocol==IPPROTO_UDP || a->protocol==IPPROTO_TCP) && (a->sport < 1 || a->sport > HI_PORT) ){	/**< Source port number out of range, set random*/
 				srand(time(NULL));
 				a->sport=(rand()%(HI_PORT-LO_PORT))+LO_PORT;
 			}
-			if(a->flood > 0)
+			if(a->flood > 0) /**< Flood*/
 				a->delay=0;
 			else 
-				if(a->fast > 0)
+				if(a->fast > 0) /**< One or more parameters fast*/
 					a->delay=a->delay-(a->fast*100000);
-			
 		}
 		break;
 	}
 	return 0;
 }
-	struct argp argp = { options, parse_opt, args_doc, doc};
-	
+
+/**
+ * @brief Struct for arguments.
+ *
+ * Defines the structure for arguments.
+ */
+struct argp argp = { options, parse_opt, args_doc, doc};
+
+/**
+ * @brief Main function of traffgen
+ *
+ * The main function of traffgen makes creating and sending packets.
+ */
 int main(int argc, char **argv){
 	
 	struct arguments a;
@@ -293,21 +321,21 @@ int main(int argc, char **argv){
 	/*Creating RAW Socket*/
 	if(a.ip_ver==IPPROTO_IPIP){
 		servaddr.sin_family		= AF_INET;
-		servaddr.sin_addr.s_addr	= a.daddr;
+		servaddr.sin_addr.s_addr= a.daddr;
 		header_length			= sizeof (struct iphdr);
 		sockfd = socket (AF_INET, SOCK_RAW, IPPROTO_RAW);
 	}
 	else{
-		servaddr6.sin6_family		= AF_INET6;
+		servaddr6.sin6_family	= AF_INET6;
 		servaddr6.sin6_addr		= a.daddr6;
 		servaddr6.sin6_port		= 0;
-		servaddr6.sin6_flowinfo		= 0;
-		servaddr6.sin6_scope_id		= 0;
-		header_length					= sizeof(struct ip6_hdr);
+		servaddr6.sin6_flowinfo	= 0;
+		servaddr6.sin6_scope_id	= 0;
+		header_length			= sizeof(struct ip6_hdr);
 		sockfd = socket (AF_INET6, SOCK_RAW, IPPROTO_RAW);
 	}
 	/*Socket error*/
-	if (sockfd < 0){ perror("could not create socket");return (0);}
+	if (sockfd < 0){ perror("Could not create socket");return (0);}
 	/*We shall provide IP headers*/
 	if(a.ip_ver==IPPROTO_IPIP){
 		if (setsockopt (sockfd, IPPROTO_IP, IP_HDRINCL, (const char*)&on, sizeof (on)) == -1) {
@@ -354,10 +382,10 @@ int main(int argc, char **argv){
 		ip->daddr	= a.daddr;
 		ip->ihl		= 5;
 		ip->tos		= 0;
-		ip->frag_off	= 0;
+		ip->frag_off= 0;
 		ip->ttl		= 255;
 		ip->id		= rand ();
-		ip->protocol	= a.protocol;
+		ip->protocol= a.protocol;
 		ip->tot_len	= htons (packet_size);
 	}
 	else{
@@ -391,8 +419,8 @@ int main(int argc, char **argv){
 		tcp->doff 	= 5;	
 		tcp->check	= 0;
 		tcp->window	= htons (5840);
-		tcp->urg_ptr	= 0;
-		tcp->ack_seq	= 0;
+		tcp->urg_ptr= 0;
+		tcp->ack_seq= 0;
 		tcp->check	= in_cksum((unsigned short *)tcp, sizeof(struct tcphdr) + payload_size);
 		data		= (packet + header_length + sizeof(struct tcphdr));
 	}
@@ -440,6 +468,16 @@ int main(int argc, char **argv){
 /*
 	Function calculate checksum
 */
+/**
+ * @brief Function calculate checksum.
+ *
+ * In this function calculate checksum.
+ * @param *ptr 		Pointer to calculate the checksum.
+ * @param nbytes 	Number of bytes of the packet.
+ * @return Returns the checksum of packet.
+ * @note Nota.
+ * @warning Advertencia.
+ */
 unsigned short in_cksum(unsigned short *ptr, int nbytes)
 {
 	register long sum;
@@ -464,3 +502,5 @@ unsigned short in_cksum(unsigned short *ptr, int nbytes)
 
 	return (answer);
 }
+
+#endif /* _BOX_PROTOTYPES_DOXYGEN_H */
